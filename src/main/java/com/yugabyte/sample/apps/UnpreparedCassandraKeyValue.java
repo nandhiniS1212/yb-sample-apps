@@ -17,8 +17,8 @@ package com.yugabyte.sample.apps;
 //import static com.yugabyte.sample.apps.UnpreparedCassandraKeyValueBase.LOG;
 
 import java.nio.ByteBuffer;
-import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
+// import java.nio.charset.Charset;
+// import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
 
@@ -36,9 +36,11 @@ import com.yugabyte.sample.common.SimpleLoadGenerator.Key;
  * inserts a million keys, and reads/updates them indefinitely.
  */
 public class UnpreparedCassandraKeyValue extends UnpreparedCassandraKeyValueBase {
-  private static final Logger LOG = Logger.getLogger(UnpreparedCassandraKeyValue.class);
+
+   //in unprepared statements you directly query without bind.
   // The default table name to create and use for CRUD ops.
-  private static final String DEFAULT_TABLE_NAME = CassandraKeyValue.class.getSimpleName();
+  private static final String DEFAULT_TABLE_NAME = UnpreparedCassandraKeyValue.class.getSimpleName();
+
   static {
     // The number of keys to read.
     appConfig.numKeysToRead = NUM_KEYS_TO_READ_FOR_YSQL_AND_YCQL;
@@ -48,6 +50,7 @@ public class UnpreparedCassandraKeyValue extends UnpreparedCassandraKeyValueBase
     // updates).
     appConfig.numUniqueKeysToWrite = NUM_UNIQUE_KEYS_FOR_YSQL_AND_YCQL;
   }
+ 
   @Override
   public List<String> getCreateTableStatements() {
     String create_stmt = String.format(
@@ -59,31 +62,20 @@ public class UnpreparedCassandraKeyValue extends UnpreparedCassandraKeyValueBase
     create_stmt += ";";
     return Arrays.asList(create_stmt);
   }
-  //private static final Object unpreparedInitLock = new Object();
+  
   @Override
   protected String getDefaultTableName() {
     return DEFAULT_TABLE_NAME;
    }
 
   @Override
-  
-  protected String queryInsert(String key, ByteBuffer value) {
-    //synchronized (unpreparedInitLock) {
-   // String vall = new String(value.array());
-
-   // String val = Charset.forName("UTF-8").decode(value).toString();
-    //String val = StandardCharsets.UTF_8.decode(value).toString();
-    // LOG.info("key: " + key + "    Value: " + bytesToHex(value));
-    return String.format("INSERT INTO %s (k, v) VALUES ('%s', 0x%s);", getTableName(), key, bytesToHex(value));
-    //}
+  protected String queryInsert() {
+    return String.format("INSERT INTO %s (k, v) VALUES (?, ?);", getTableName());
   }
 
-  //in unprepared statements you directly query without bind 
   @Override 
-  protected String querySelect(String key)  {
-    //synchronized (unpreparedInitLock) {
-    return  String.format("SELECT k, v FROM %s WHERE k = '%s';", getTableName(),key);
-   // }
+  protected String querySelect()  {
+    return  String.format("SELECT k, v FROM %s WHERE k = ? ;", getTableName());
   }
 
   @Override
@@ -96,28 +88,4 @@ public class UnpreparedCassandraKeyValue extends UnpreparedCassandraKeyValueBase
        " User can run read/write(both) operations indefinitely by passing -1 to --num_reads or --num_writes or both");
   }
 
-  public static String bytesToHex(ByteBuffer temp) {
-    // String temp2 = new String(temp.array());
-    // LOG.info("------------------------------------------ " + temp2);
-    ByteBuffer byteBuffer = temp;
-    StringBuilder hexString = new StringBuilder();
-    while (byteBuffer.hasRemaining()) {
-        String hex = Integer.toHexString(byteBuffer.get() & 0xFF);
-        if (hex.length() == 1) {
-            hexString.append('0');
-        }
-        hexString.append(hex);
-    }
-    // String temp3 = new String(temp.array());
-    // LOG.info("+++++++++++++++++++++++++++++++++++++++++++ " + temp3);
-    return hexString.toString();
-  }
-  public static String bytesToDecimal(ByteBuffer byteBuffer) {
-    StringBuilder decimalString = new StringBuilder();
-    while (byteBuffer.hasRemaining()) {
-        int unsignedValue = byteBuffer.get() & 0xFF; // Convert signed byte to unsigned int
-        decimalString.append(unsignedValue).append(" ");
-    }
-    return decimalString.toString().trim();
-  }
 }
